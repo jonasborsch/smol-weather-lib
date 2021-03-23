@@ -1,6 +1,12 @@
 import Foundation
 import FoundationNetworking
 
+public enum WeatherServiceError {
+    case missingURL
+    case invalidCityParameter(parameter: String)
+}
+
+
 public class WeatherService {
     private let apiUrl = "https://api.openweathermap.org/data/2.5/weather"
     private let appid: String
@@ -9,19 +15,24 @@ public class WeatherService {
         self.appid = appid
     }
     
-    public func loadWeather(byCity city: String, completionHandler: @escaping (WeatherData) -> Void) -> Void {
-        var components = self.baseComponents()
+    public func loadWeather(byCity city: String, completionHandler: @escaping (WeatherData) -> Void) { // We only need the void return for the completion handler
+        do {
+            var components = try getBaseComponents()
 
-        components.queryItems!.append(URLQueryItem(
-            name: "q",
-            value: city
-        ))
+            components.queryItems?.append(URLQueryItem(  // ? instead of ! (forced unwrapping) (this is the optional chaining I was telling you about)
+                name: "q",
+                value: city
+            ))
 
-        self.fetchWeatherData(with: components.url!, completionHandler: completionHandler);
+            fetchWeatherData(with: components.url!, completionHandler: completionHandler) // No need to call self, it's better to avoid using self whenever possible
+        } catch {
+            // If we don't specify otherwise, the caught expection is called error
+            print("StatusCode: \(response.statusCode)")
+        }
     }
 
-    public func loadWeather(byCoordinates coordinates: Coordinates, completionHandler: @escaping (WeatherData) -> Void) -> Void {
-        var components = self.baseComponents()
+    public func loadWeather(byCoordinates coordinates: Coordinates, completionHandler: @escaping (WeatherData) -> Void) throws {
+        var components = self.getBaseComponents()
 
         components.queryItems!.append(contentsOf: [
             URLQueryItem(
@@ -79,8 +90,10 @@ public class WeatherService {
         task.resume();
     }
 
-    private func baseComponents() -> URLComponents { 
-        var components = URLComponents(string: self.apiUrl)!
+    private func getBaseComponents() -> URLComponents throws { 
+        guard var components = URLComponents(string: self.apiUrl) else { // Avoid force-unwrapping optionals
+            throw WeatherServiceError.invalidBaseURL
+        }
 
         let appid = URLQueryItem(
             name: "appid",
