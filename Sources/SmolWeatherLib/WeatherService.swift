@@ -17,7 +17,7 @@ public class WeatherService {
         self.appid = appid
     }
     
-    public func loadWeather(byCity city: String, completionHandler: @escaping (Result<WeatherData, WeatherServiceError>) -> Void) throws {
+    public func loadWeather(byCity city: String, completionHandler: @escaping (Result<WeatherData, Error>) -> Void) throws {
         let cityParam = URLQueryItem(
             name: "q",
             value: city
@@ -27,7 +27,7 @@ public class WeatherService {
         fetchWeatherData(with: components.url!, completionHandler: completionHandler)
     }
 
-    public func loadWeather(byCoordinates coordinates: Coordinates, completionHandler: @escaping (Result<WeatherData, WeatherServiceError>) -> Void) throws {
+    public func loadWeather(byCoordinates coordinates: Coordinates, completionHandler: @escaping (Result<WeatherData, Error>) -> Void) throws {
         let latItem = URLQueryItem(
             name: "lat",
             value: String(coordinates.lat)
@@ -42,7 +42,7 @@ public class WeatherService {
         fetchWeatherData(with: components.url!, completionHandler: completionHandler);
     }
 
-    public func loadWeather(byZipCode zipCode: String, completionHandler: @escaping (Result<WeatherData, WeatherServiceError>) -> Void) throws {
+    public func loadWeather(byZipCode zipCode: String, completionHandler: @escaping (Result<WeatherData, Error>) -> Void) throws {
         let zipItem = URLQueryItem(
             name: "zip",
             value: zipCode
@@ -53,7 +53,7 @@ public class WeatherService {
         fetchWeatherData(with: components.url!, completionHandler: completionHandler);
     }
 
-    private func fetchWeatherData(with url: URL, completionHandler: @escaping (Result<WeatherData, WeatherServiceError>) -> Void) {
+    private func fetchWeatherData(with url: URL, completionHandler: @escaping (Result<WeatherData, Error>) -> Void) {
         let task = URLSession.shared.dataTask(with: url) { (data, response, error) in
             if let error = error {
                 completionHandler(.failure(error))
@@ -61,23 +61,23 @@ public class WeatherService {
             }
 
             guard let response = response as? HTTPURLResponse else {
-                completionHandler(.failure(.invalidResponseError)
+                completionHandler(.failure(WeatherServiceError.invalidResponseError))
                 return
             }
 
             if response.statusCode != 200 {
-                completionHandler(.failure(.HTTPResponseError(response)))
+                completionHandler(.failure(WeatherServiceError.HTTPResponseError(response: response)))
                 return
             }
 
             guard let data = data,
                   let weatherData = try? JSONDecoder().decode(WeatherData.self, from: data)
             else {
-                completionHandler(.failure(.parsingError))
+                completionHandler(.failure(WeatherServiceError.parsingError))
                 return
             }
 
-            completionHandler(weatherData);
+            completionHandler(.success(weatherData));
         }
 
         // immediately start the task
@@ -98,8 +98,9 @@ public class WeatherService {
             value: "metric"
         )
 
-        items.append(contentsOf: [appid, units])
-        components.queryItems = items
+        var queryItems = [appid, units]
+        queryItems.append(contentsOf: items)
+        components.queryItems = queryItems
 
         return components
     }
